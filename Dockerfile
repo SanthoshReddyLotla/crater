@@ -1,47 +1,23 @@
-FROM php:8.1-fpm
+FROM php:8.1-apache
 
-# Default values for Render environment
-ARG user=render
-ARG uid=1000
-
-# Install system dependencies
+# Install extensions
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
-    zip \
-    unzip \
     libzip-dev \
-    libmagickwand-dev \
+    unzip \
     mariadb-client \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    libmagickwand-dev \
+    && pecl install imagick \
+    && docker-php-ext-enable imagick \
+    && docker-php-ext-install pdo_mysql mbstring zip exif pcntl bcmath gd
 
-# Install Imagick
-RUN pecl install imagick \
-    && docker-php-ext-enable imagick
+# Enable Apache Rewrite (optional for frameworks like Laravel)
+RUN a2enmod rewrite
 
-# Install PHP extensions
-RUN docker-php-ext-install \
-    pdo_mysql \
-    mbstring \
-    zip \
-    exif \
-    pcntl \
-    bcmath \
-    gd
+# Copy app files
+COPY . /var/www/html/
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Create user
-RUN useradd -G www-data,root -u $uid -d /home/$user $user \
-    && mkdir -p /home/$user/.composer \
-    && chown -R $user:$user /home/$user
-
-# Set working directory
-WORKDIR /var/www
-
-# Use created user
-USER $user
+# Set correct permissions (if needed)
+RUN chown -R www-data:www-data /var/www/html
